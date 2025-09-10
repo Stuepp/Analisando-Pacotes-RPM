@@ -1,4 +1,4 @@
-#!/bin/sh
+# /bin/bash
 # clear
 
 echo "Contando pacotes (INSTALADDOS) assinados e não assinados..."
