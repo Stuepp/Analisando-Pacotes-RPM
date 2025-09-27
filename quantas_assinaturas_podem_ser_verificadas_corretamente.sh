@@ -6,6 +6,31 @@
 # Utiliza o comando 'rpm -K' (equivalente a 'rpm --checksig').
 # ---
 
+# funções
+
+verificacao_com_checksig(){
+	for pacote in "$RPM_DIR"/*.rpm; do
+		# Imprime o nome do pacote que está sendo verificado para melhor feedback.
+		echo "--> Verificando: $(basename "$pacote")"
+
+		# Executa o comando 'rpm -K' no pacote.
+		# A opção -v (verbose) pode ser adicionada para mais detalhes: rpm -Kv "$pacote"
+		rpm -K "$pacote"
+		echo "----------------------------------------------"
+		((files_found++))
+	done
+}
+
+verificacao_com_sigpgp(){
+	for pacote in "$RPM_DIR"/*.rpm; do
+		echo "--> Verificando: $(basename "$pacote")"
+		rpm -q --qf '%{SIGPGP:pgpsig}' "$pacote"
+		echo "---------------------------------------------"
+		((files_found2++))
+	done
+}
+
+
 # 1. Defina o caminho para o diretório que contém os pacotes RPM.
 #	Altere o valor abaixo para o seu diretório
 #	Ex: RPM_DIRECTOY="home/user/Downloads/pactes_rpm"
@@ -33,29 +58,14 @@ files_found=0
 files_found2=0
 
 # 4. Inicia o loop 'for' para cada arquivo que termina com .rpm no diretório.
-for pacote in "$RPM_DIR"/*.rpm; do
-	# Imprime o nome do pacote que está sendo verificado para melhor feedback.
-	echo "--> Verificando: $(basename "$pacote")"
+verificacao_com_checksig
 
-	# Executa o comando 'rpm -K' no pacote.
-	# A opção -v (verbose) pode ser adicionada para mais detalhes: rpm -Kv "$pacote"
-	rpm -K "$pacote"
-	echo "----------------------------------------------"
-	((files_found++))
-done
-
-echo "\nInicianod a verificação de pacotes com {SIGPGP}"
+echo -e "\n"
+echo "Iniciand0 a verificação de pacotes com {SIGPGP}"
 echo "=============================================="
 
-
 # 4.5 Inicia outro loop 'for' para fazer a mesma verificação porém  usando '%{SIGPGP:pgpsig}'
-for pacote in "$RPM_DIR"/*.rpm; do
-	echo "--> Verificando: $(basename "$pacote")"
-	rpm -q --qf '%{SIGPGP:pgpsig}' "$pacote"
-	echo "---------------------------------------------"
-	((files_found2++))
-done
-
+verificacao_com_sigpgp
 
 # Restaure o comportamento padrão do glob
 shopt -u nullglob
@@ -64,7 +74,7 @@ shopt -u nullglob
 if [ "$files_found" -eq 0 ]; then
 	echo "Nenhum arquivo .rpm encontrado no diretório."
 else
-	echo "Verificação concluída. TOtal de $files_found pacotes analisados."
+	echo "Verificação concluída. Total de $files_found pacotes analisados."
 fi
 
 exit 0
