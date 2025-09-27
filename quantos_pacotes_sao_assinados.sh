@@ -6,6 +6,54 @@
 # Utiliza o comando 'rpm -K' (equivalente a 'rpm --checksig').
 # ---
 
+
+# funções
+
+conta_pacotes_teste() {
+    for pacote in "$RPM_DIR"/*.rpm; do
+	    # Imprime o nome do pacote que está sendo verificado para melhor feedback.
+	    #echo "--> Verificando: $(basename "$pacote")"
+
+	    # Executa o comando 'rpm -K' no pacote.
+	    # A opção -v (verbose) pode ser adicionada para mais detalhes: rpm -Kv "$pacote"
+	    local saida=$(rpm -qi "$pacote" | grep "Signature")
+        if [[ "$saida" == *"(none)"* ]]; then
+            ((pacotes_n_assinados++))
+        else
+            ((pacotes_assinados++))
+        fi
+        #rpm -qi "$pacote" | grep "Signature"
+	    #echo "----------------------------------------------"
+	    ((files_found++))
+    done
+}
+
+conta_pacotes_instalados() {
+    local lista_pacotes
+    lista_pacotes=$(rpm -qa --qf '%{NAME}\n')
+    local total_pacotes
+    total_pacotes=$(echo "$lista_pacotes" | wc -l)
+
+    local pacote_atual=0
+
+    # Itera sobre o nome de cada pacote
+    while read -r pacote2; do
+        # Atualiza e exibe o progresso
+        ((pacote_atual++))
+        echo -ne "Analisando $pacote_atual de $total_pacotes - $pacote2 \r"
+
+        # Pega as informações do pacote
+        local saida=$(rpm -qi "$pacote2" | grep "Signature")
+        if [[ "$saida" == *"(none)"* ]]; then
+            ((instalados_n_assinados++))
+        else
+            ((instalados_assinados++))
+        fi
+
+    done <<< "$lista_pacotes" # Alimenta a lista de pacotes para o loop
+}
+
+
 # =========== PARA OS PACOTES DE TESTE PRIMEIRO =============
 
 # 1. Defina o caminho para o diretório que contém os pacotes RPM.
@@ -19,7 +67,9 @@ pacotes_assinados=0
 pacotes_n_assinados=0
 assinatura_verificavel=0
 assinatura_n_verificavel=0
-
+# P/ pacotes instalados
+instalados_assinados=0
+instalados_n_assinados=0
 
 # 2. Verifica se o diretório especificado realmente exite.
 
@@ -39,22 +89,11 @@ shopt -s nullglob
 files_found=0
 
 # 4. Inicia o loop 'for' para cada arquivo que termina com .rpm no diretório.
-for pacote in "$RPM_DIR"/*.rpm; do
-	# Imprime o nome do pacote que está sendo verificado para melhor feedback.
-	echo "--> Verificando: $(basename "$pacote")"
 
-	# Executa o comando 'rpm -K' no pacote.
-	# A opção -v (verbose) pode ser adicionada para mais detalhes: rpm -Kv "$pacote"
-	saida=$(rpm -qi "$pacote" | grep "Signature")
-    if [[ "$saida" == *"(none)"* ]]; then
-        ((pacotes_n_assinados++))
-    else
-        ((pacotes_assinados++))
-    fi
-    #rpm -qi "$pacote" | grep "Signature"
-	#echo "----------------------------------------------"
-	((files_found++))
-done
+conta_pacotes_teste
+
+# 4.5 Faz a contagem dos pacotes assinados ou não, que estão instalados no sistema (rpm -qa)
+conta_pacotes_instalados
 
 # Restaure o comportamento padrão do glob
 shopt -u nullglob
@@ -66,6 +105,14 @@ else
 	echo "Verificação concluída. Total de $files_found pacotes analisados."
     echo "Total de pacotes assinados: $pacotes_assinados."
     echo "Total de pacotes não assinados $pacotes_n_assinados"
+    echo "=============================="
 fi
 
+echo -e "\n"
+echo "Para pacotes INSTALADOS"
+echo "Total de pacotes assinados: $instalados_assinados"
+echo "Total de pacotes não assinados: $instalados_n_assinados"
+
 exit 0
+
+
