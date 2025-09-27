@@ -11,19 +11,12 @@
 
 conta_pacotes_teste() {
     for pacote in "$RPM_DIR"/*.rpm; do
-	    # Imprime o nome do pacote que está sendo verificado para melhor feedback.
-	    #echo "--> Verificando: $(basename "$pacote")"
-
-	    # Executa o comando 'rpm -K' no pacote.
-	    # A opção -v (verbose) pode ser adicionada para mais detalhes: rpm -Kv "$pacote"
 	    local saida=$(rpm -qi "$pacote" | grep "Signature")
         if [[ "$saida" == *"(none)"* ]]; then
             ((pacotes_n_assinados++))
         else
             ((pacotes_assinados++))
         fi
-        #rpm -qi "$pacote" | grep "Signature"
-	    #echo "----------------------------------------------"
 	    ((files_found++))
     done
 }
