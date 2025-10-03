@@ -12,6 +12,11 @@ chave_usada_para_assinar_pacote(){
     for pacote in $REPO_PATH; do
         # Buscando o key id do pacote
         local sig_line=$(rpm -qi "$pacote" | grep Signature)
+        # Passa para o próximo pacote caso o atual não esteja assinado
+        if echo "$sig_line" | grep -q "(none)" || [[ -z "$sig_line" ]]; then
+            continue
+        fi
+
         local key_id=$(echo "$sig_line" | awk '{print $NF}')
         local short_key_id=${key_id: -8}
         # Pegando a chave usada para assinar o pacote através do key id, com seus últimos 8 digitos
