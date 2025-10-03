@@ -29,18 +29,25 @@ chave_usada_para_assinar_pacote(){
         local short_key_id=${key_id: -8}
         # Pegando a chave usada para assinar o pacote através do key id, com seus últimos 8 digitos
         local key_used=$(rpm -q gpg-pubkey --qf '%{NAME}-%{VERSION}-%{RELEASE}\t%{SUMMARY}\n' | grep "$short_key_id")
-        # Confere se a lista é vazia ou não
-        if (( ${#list_key_ids_used[@]} )); then
-            # como a lista não está vazia deve verificar se a nova chave encontrada
-            # é diferente das chaves já registradas
-            for k in ${list_key_ids_used}; do
-                if [ "${k}" != "$key_used" ]; then 
-                    list_key_ids_used+=($key_used)
-                fi
-            done
-        else # caso vazia
-            list_key_ids_used+=($key_used)
+        # Confere se a chave utilizada faz parte das chaves listadas pelo sistema...
+        if [[ -n "$key_used" ]]; then
+            # Confere se a lista é vazia ou não
+            if (( ${#list_key_ids_used[@]} )); then
+                # como a lista não está vazia deve verificar se a nova chave encontrada
+                # é diferente das chaves já registradas
+                for k in ${list_key_ids_used}; do
+                    if [ "${k}" != "$key_used" ]; then 
+                        list_key_ids_used+=($key_used)
+                    fi
+                done
+            else # caso vazia
+                list_key_ids_used+=($key_used)
         fi
+        else
+            # Caso seja uma chave não listada, adicionar unknown - desconhecida
+            list_key_ids_used+=("desconhecida")
+        fi
+        
     done
     echo "Chaves usadas para assinar os pacotes:"
     for k in ${list_key_ids_used}; do
@@ -91,6 +98,7 @@ algoritmos_criptograficos_usados_e_tamanhos_de_chave(){
         echo "Chave sendo verificada:"
         rpm -q gpg-pubkey --qf '%{NAME}-%{VERSION}-%{RELEASE}\t%{SUMMARY}\n' | grep "$k"
         rpm -qi "$k" | gpg
+        # Falta conferir data de expiração e tempo de vida, mesmo que na prática (no caso do Fedora) seja a mesma chave
     done
 }
 
