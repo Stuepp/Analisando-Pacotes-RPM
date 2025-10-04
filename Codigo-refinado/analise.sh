@@ -14,6 +14,8 @@ declare -A ALGO_MAP=(
     [19]="ECDSA"
 )
 
+declare -a package_versions
+
 # --- Funções ---
 
 chave_usada_para_assinar_pacote(){
@@ -102,13 +104,40 @@ algoritmos_criptograficos_usados_e_tamanhos_de_chave(){
     done
 }
 
+verifica_versao_RPM_do_pacote(){
+    for pacote in $REPO_PATH; do
+        local versao=$(file "$pacote" | grep -o 'RPM v[0-9.]\+')
+        #echo "Pacote: $(basename "$pacote") -- Versão RPM: $versao"
+        echo "$versao"
+        if (( ${#package_versions[@]} )); then
+            for pv in "${package_versions}"; do
+                if [[ "$pv" != "$versao" ]]; then
+                    package_versions+=("$versao")
+                fi
+            done
+        else
+            package_versions+=("$versao")
+            echo "added ${package_versions[-1]}"
+        fi
+    done
+
+    echo "Versões de pacotes enontradas:"
+    for pv in "${package_versions[@]}"; do
+        echo "$pv"
+    done
+}
+
 # --- Main ---
 echo 
 echo "Conferindo as chaves usadas para assinar pacotes:"
 
 chave_usada_para_assinar_pacote
 
-echo 
+echo "-----------------------------------"
 echo "Conferindo algoritmos criptográficos usados e tamanhos de chave utilizados:"
 
 algoritmos_criptograficos_usados_e_tamanhos_de_chave
+
+echo "-----------------------------------"
+echo "Verificando versão RPM dos pacotes:"
+verifica_versao_RPM_do_pacote
