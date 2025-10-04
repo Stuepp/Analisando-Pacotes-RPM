@@ -108,7 +108,7 @@ verifica_versao_RPM_do_pacote(){
     for pacote in $REPO_PATH; do
         local versao=$(file "$pacote" | grep -o 'RPM v[0-9.]\+')
         #echo "Pacote: $(basename "$pacote") -- Versão RPM: $versao"
-        echo "$versao"
+        #echo "$versao"
         if (( ${#package_versions[@]} )); then
             for pv in "${package_versions}"; do
                 if [[ "$pv" != "$versao" ]]; then
@@ -117,7 +117,7 @@ verifica_versao_RPM_do_pacote(){
             done
         else
             package_versions+=("$versao")
-            echo "added ${package_versions[-1]}"
+            #echo "added ${package_versions[-1]}"
         fi
     done
 
@@ -125,6 +125,8 @@ verifica_versao_RPM_do_pacote(){
     for pv in "${package_versions[@]}"; do
         echo "$pv"
     done
+
+    # Melhorar script para fazer uma contagem das quantidade de diferentes versões RPM encontradas... (?)
 }
 
 # --- Main ---
