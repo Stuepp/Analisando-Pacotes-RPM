@@ -107,23 +107,32 @@ algoritmos_criptograficos_usados_e_tamanhos_de_chave(){
 verifica_versao_RPM_do_pacote(){
     for pacote in $REPO_PATH; do
         local versao=$(file "$pacote" | grep -o 'RPM v[0-9.]\+')
+        echo "$versao"
         #echo "Pacote: $(basename "$pacote") -- Versão RPM: $versao"
         #echo "$versao"
         if (( ${#package_versions[@]} )); then
-            for pv in "${package_versions}"; do
-                if [[ "$pv" != "$versao" ]]; then
-                    package_versions+=("$versao")
+            for position in "${!package_versions[@]}"; do
+                IFS=',' read -r ver contador <<< "${package_versions[position]}"
+                if [[ "$ver" != "$versao" ]]; then
+                    local tuple="$versao,1"
+                    package_versions+=("$tuple")
+                else
+                    ((contador++))
+                    local tuple="$versao,$contador"
+                    package_versions[position]="$tuple"
                 fi
             done
         else
-            package_versions+=("$versao")
+            local tuple="$versao,1"
+            package_versions+=("$tuple")
             #echo "added ${package_versions[-1]}"
         fi
     done
 
     echo "Versões de pacotes enontradas:"
     for pv in "${package_versions[@]}"; do
-        echo "$pv"
+        IFS=',' read -r -a tuple_elements <<< "$pv"
+        echo "${tuple_elements[0]}; quantidade:${tuple_elements[1]}"
     done
 
     # Melhorar script para fazer uma contagem das quantidade de diferentes versões RPM encontradas... (?)
@@ -131,14 +140,14 @@ verifica_versao_RPM_do_pacote(){
 
 # --- Main ---
 echo 
-echo "Conferindo as chaves usadas para assinar pacotes:"
+#echo "Conferindo as chaves usadas para assinar pacotes:"
 
-chave_usada_para_assinar_pacote
+#chave_usada_para_assinar_pacote
 
 echo "-----------------------------------"
-echo "Conferindo algoritmos criptográficos usados e tamanhos de chave utilizados:"
+#echo "Conferindo algoritmos criptográficos usados e tamanhos de chave utilizados:"
 
-algoritmos_criptograficos_usados_e_tamanhos_de_chave
+#algoritmos_criptograficos_usados_e_tamanhos_de_chave
 
 echo "-----------------------------------"
 echo "Verificando versão RPM dos pacotes:"
