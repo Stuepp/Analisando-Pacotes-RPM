@@ -6,6 +6,7 @@ echo "Este processo será mais lento, por favor aguarde."
 
 # Inicializa os contadores
 verifiable=0
+checksig_verifiable=0
 unverifiable=0
 unsigned=0
 current_package=0
@@ -17,7 +18,7 @@ total_packages=$(echo "$package_list" | wc -l)
 # Itera sobre cada nome de pacote
 while read -r package; do
   # Atualiza e exibe o progresso
-  current_package=$((current_package + 1))
+  ((current_package++))
   echo -ne "Analisando: $current_package de $total_packages - $package \r"
 
   # Pega as informações do pacote UMA VEZ para otimizar
@@ -35,8 +36,13 @@ while read -r package; do
       # Contém "Key ID", então a chave está no chaveiro. É verificável.
       ((verifiable++))
     else
-      # Não contém "Key ID", então a chave está ausente. É não verificável.
-      ((unverifiable++))
+      sig_check_output=$(rpm --checksig "$package")
+      if [[ "$sig_check_output" ==  *"NOT OK"* ]]; then
+        # Não contém "Key ID", então a chave está ausente. É não verificável.
+        ((unverifiable++))
+      else
+        ((checksig_verifiable++))
+      fi
     fi
   else
     # Se a linha Signature não existe ou é exatamente "(none)",
@@ -52,7 +58,8 @@ echo -e "\n"
 echo "---"
 echo "Resultado da Auditoria de Assinaturas:"
 echo "Total de pacotes: $total_packages"
-echo "  - Com assinatura verificável: $verifiable"
+echo "  - Com assinatura verificável ({SIGPGP:pgpsig}): $verifiable"
+echo "  - Com assinatura verificável (--checksig): $checksig_verifiable"
 echo "  - Com assinatura não verificável (chave ausente): $unverifiable"
 echo "  - Sem assinatura: $unsigned"
 
