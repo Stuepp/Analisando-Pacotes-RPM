@@ -11,7 +11,7 @@
 verificacao_com_checksig(){
 	for pacote in "$RPM_DIR"/*.rpm; do
 		# Imprime o nome do pacote que está sendo verificado para melhor feedback.
-		echo "--> Verificando: $(basename "$pacote")"
+		#echo "--> Verificando: $(basename "$pacote")"
 
 		# Executa o comando 'rpm -K' no pacote.
 		# A opção -v (verbose) pode ser adicionada para mais detalhes: rpm -Kv "$pacote"
@@ -65,7 +65,7 @@ echo "Iniciand0 a verificação de pacotes com {SIGPGP}"
 echo "=============================================="
 
 # 4.5 Inicia outro loop 'for' para fazer a mesma verificação porém  usando '%{SIGPGP:pgpsig}'
-verificacao_com_sigpgp
+#verificacao_com_sigpgp
 
 # Restaure o comportamento padrão do glob
 shopt -u nullglob
