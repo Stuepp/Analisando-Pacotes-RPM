@@ -46,6 +46,13 @@ conta_pacotes_instalados() {
     done <<< "$lista_pacotes" # Alimenta a lista de pacotes para o loop
 }
 
+# rpm -Kv
+verifica_condicao_do_pacote() {
+    for pacote in "$RPM_DIR"/.*rpm; do
+        local saida=$(rpm -Kv "$pacote")
+    done
+}
+
 
 # =========== PARA OS PACOTES DE TESTE PRIMEIRO =============
 
