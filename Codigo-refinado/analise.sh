@@ -95,12 +95,17 @@ algoritmos_criptograficos_usados_e_tamanhos_de_chave(){
     echo "Algoritimo utilizado: $algo_name -- Tamanho: $size_bits -- Data de criação: $creation_date -- Data de expiração: $expiration_date -- Tempo de vida: $lifespan"
 
     echo
-    echo "\t Verificandoa agora chaves utilizadas pelos pacotes"
+    echo "\t Verificando agora chaves utilizadas pelos pacotes"
     for k in ${list_key_ids_used}; do
         echo "Chave sendo verificada:"
         rpm -q gpg-pubkey --qf '%{NAME}-%{VERSION}-%{RELEASE}\t%{SUMMARY}\n' | grep "$k"
+        echo
+        local build_date=$(rpm -qi $k | grep "Build Date")
+        echo "$build_date"
+        echo
         rpm -qi "$k" | gpg
-        # Falta conferir data de expiração e tempo de vida, mesmo que na prática (no caso do Fedora) seja a mesma chave
+        # para chaves intaladas precisa-se buscar a chave de verdade (aqui se está olhando um pacote da chave) para poder extrair se tiver
+        # data de expiração, e assim calcular tempo de vida
     done
 }
 
