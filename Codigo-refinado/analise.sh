@@ -122,11 +122,13 @@ algoritmos_criptograficos_usados_e_tamanhos_de_chave(){
 verifica_versao_RPM_do_pacote(){
     local -a pacotes_com_erro=()
 
-    local total_de_pacote=$(ls | wc -l)
-    local contador=0
+    local total_de_pacote=$(ls $REPO_PATH | wc -l)
+    echo "total_de_pacote= $total_de_pacote"
+    local n_pacotes=0
     local start_time=$(date +%s)
 
     for pacote in $REPO_PATH; do
+        ((n_pacotes++))
         local versao=$(file "$pacote" | grep -o 'RPM v[0-9.]\+')
         #echo "Pacote: $(basename "$pacote") -- Versão RPM: $versao"
         #echo "$versao"
@@ -160,8 +162,8 @@ verifica_versao_RPM_do_pacote(){
         local elapsed=$((now - start_time))
 
         # Evita a divisão por zero e resultados vazios
-        if (( contador > 0 )); then
-            local avg_time_per_file=$(echo "scale=4; $elapsed / $contador" | bc)
+        if (( n_pacotes > 0 )); then
+            local avg_time_per_file=$(echo "scale=4; $elapsed / $n_pacotes" | bc)
         else
             local avg_time_per_file=0
         fi
@@ -175,18 +177,18 @@ verifica_versao_RPM_do_pacote(){
         fi
 
         # Garante que temos um valor inteiro válido
-        local est_remaining_int=$(est_remaining%.*)
+        local est_remaining_int=${est_remaining%.*}
         [[ -z "$est_remaining_int" ]] && est_remaining_int=0
 
         # cálculo da porcentagem
         if (( total_de_pacote > 0 )); then
-            local percent=$(echo "scale=2; ($contador / $total_de_pacote) * 100" | bc)
+            local percent=$(echo "scale=2; ($n_pacotes / $total_de_pacote) * 100" | bc)
         else
             local percent=0
         fi
 
         # cálculo da barra
-        local filled=$(( (bar_lenght * contador) / total_de_pacote ))
+        local filled=$(( (bar_lenght * n_pacotes) / total_de_pacote ))
         local empty=$((bar_length - filled))
         local progress_bar
         progress_bar=$(printf "%0.s#" $(seq 1 $filled))
@@ -199,7 +201,7 @@ verifica_versao_RPM_do_pacote(){
 
         # Exibe a barra de progresso
         printf "\r[%s] %s%% | %d/%d | Tempo restante: %0d:%02d:%02d" \
-            "$progress_bar" "$percent" "$contador" "$total_de_pacote" \
+            "$progress_bar" "$percent" "$n_pacotes" "$total_de_pacote" \
             "$hours" "$minute" "$seconds"
 
         #
