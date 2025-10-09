@@ -8,8 +8,6 @@ RPM_KEYS_DIR="/etc/pki/rpm-gpg"
 
 declare -a list_key_ids_used
 
-TOTAL_DE_PACOTES_ASSINADOS=0
-
 declare -A ALGO_MAP=(
     [1]="RSA"
     [17]="DSA"
@@ -21,6 +19,8 @@ declare -a package_versions
 # --- Funções ---
 
 chave_usada_para_assinar_pacote(){
+    local TOTAL_DE_PACOTES_ASSINADOS=0
+
     for pacote in $REPO_PATH; do
         # Buscando o key id do pacote
         local sig_line=$(rpm -qi "$pacote" | grep Signature)
@@ -120,10 +120,22 @@ algoritmos_criptograficos_usados_e_tamanhos_de_chave(){
 }
 
 verifica_versao_RPM_do_pacote(){
+    local -a pacotes_com_erro=()
+
+    local total_de_pacote=$(ls | wc -l)
+    local contador=0
+    local start_time=$(date +%s)
+
     for pacote in $REPO_PATH; do
         local versao=$(file "$pacote" | grep -o 'RPM v[0-9.]\+')
         #echo "Pacote: $(basename "$pacote") -- Versão RPM: $versao"
         #echo "$versao"
+        if [[ -z "$versao" ]]; then
+            pacotes_com_erro+=("$pacote")
+            continue
+        fi
+
+
         if (( ${#package_versions[@]} )); then
             for position in "${!package_versions[@]}"; do
                 IFS=',' read -r ver contador <<< "${package_versions[position]}"
@@ -141,6 +153,57 @@ verifica_versao_RPM_do_pacote(){
             package_versions+=("$tuple")
             #echo "added ${package_versions[-1]}"
         fi
+        #
+
+        # Barra de progresso
+        local now=$(date +%s)
+        local elapsed=$((now - start_time))
+
+        # Evita a divisão por zero e resultados vazios
+        if (( contador > 0 )); then
+            local avg_time_per_file=$(echo "scale=4; $elapsed / $contador" | bc)
+        else
+            local avg_time_per_file=0
+        fi
+
+        local est_total_time=$(echo "scale=4; $avg_time_per_file * $total_de_pacote" | bc)
+        local est_remaining=$(echo "$est_total_time - $elapsed" | bc)
+
+        # se o bc retornar vazio ou negativo, força para 0
+        if [[ -z "$set_remaining" || $(echo "$est_remaining < 0" | bc) -eq 1 ]]; then
+            est_remaining=0
+        fi
+
+        # Garante que temos um valor inteiro válido
+        local est_remaining_int=$(est_remaining%.*)
+        [[ -z "$est_remaining_int" ]] && est_remaining_int=0
+
+        # cálculo da porcentagem
+        if (( total_de_pacote > 0 )); then
+            local percent=$(echo "scale=2; ($contador / $total_de_pacote) * 100" | bc)
+        else
+            local percent=0
+        fi
+
+        # cálculo da barra
+        local filled=$(( (bar_lenght * contador) / total_de_pacote ))
+        local empty=$((bar_length - filled))
+        local progress_bar
+        progress_bar=$(printf "%0.s#" $(seq 1 $filled))
+        progress_bar=$(printf "%0.s#-" $(seq 1 $empty))
+
+        # Formata o tempo restante (horas:min:seg)
+        local hours=$((est_remaining_int / 3600))
+        local minute=$(( (est_remaining_int % 3600) / 60 ))
+        local seconds=$(( est_remaining_int % 60 ))
+
+        # Exibe a barra de progresso
+        printf "\r[%s] %s%% | %d/%d | Tempo restante: %0d:%02d:%02d" \
+            "$progress_bar" "$percent" "$contador" "$total_de_pacote" \
+            "$hours" "$minute" "$seconds"
+
+        #
+    
     done
 
     echo "Versões de pacotes enontradas:"
@@ -148,6 +211,18 @@ verifica_versao_RPM_do_pacote(){
         IFS=',' read -r -a tuple_elements <<< "$pv"
         echo "${tuple_elements[0]}; quantidade:${tuple_elements[1]}"
     done
+
+    # Exibe os pacotes/arquivos problemáticos
+    if (( ${#pacotes_com_erro[@]} )); then
+        echo -e "\n -------"
+        echo "Pacotes problemáticos encontrados: ${#pacotes_com_erro[@]}"
+        echo "------"
+        for arq in "${pacotes_com_erro[@]}"; do
+            echo "$arq"
+        done
+    else
+        echo -e "\nNenhum pacote problemático encontrado"
+    fi
 }
 
 # --- Main ---
