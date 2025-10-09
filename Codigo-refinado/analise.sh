@@ -8,6 +8,8 @@ RPM_KEYS_DIR="/etc/pki/rpm-gpg"
 
 declare -a list_key_ids_used
 
+TOTAL_DE_PACOTES_ASSINADOS=0
+
 declare -A ALGO_MAP=(
     [1]="RSA"
     [17]="DSA"
@@ -26,6 +28,8 @@ chave_usada_para_assinar_pacote(){
         if echo "$sig_line" | grep -q "(none)" || [[ -z "$sig_line" ]]; then
             continue
         fi
+
+        ((TOTAL_DE_PACOTES_ASSINADOS++))
 
         local key_id=$(echo "$sig_line" | awk '{print $NF}')
         local short_key_id=${key_id: -8}
@@ -55,6 +59,12 @@ chave_usada_para_assinar_pacote(){
     for k in ${list_key_ids_used}; do
         rpm -q gpg-pubkey --qf '%{NAME}-%{VERSION}-%{RELEASE}\t%{SUMMARY}\n' | grep "$k"
     done
+
+    echo
+    echo "Total de pacotes assinados: $TOTAL_DE_PACOTES_ASSINADOS"
+
+    # Adicionar contagem dos pacotes que foram assinados
+    # Contagem dos pacotes assinados e não assinados
 }
 
 algoritmos_criptograficos_usados_e_tamanhos_de_chave(){
