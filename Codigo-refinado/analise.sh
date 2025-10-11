@@ -261,20 +261,42 @@ verifica_versao_RPM_do_pacote(){
 verifica_RPM(){
     local batch_size=3
     local batch=()
+    local package_versions=()
 
     for pacote in $REPO_PATH; do
         batch+=("$pacote")
         if (( ${#batch[@]} == batch_size )); then
-            local versao=$("./$EXECUTABLE_NAME" "${batch[@]}" | awk -F': ' '{if ($2 ~ /^[0-9]+(\.[0-9]+)*$/) print $2}')
-            echo "$versao"
+            while IFS= read -r versao; do
+                adicionar_versao "$versao"
+            done < <("./$EXECUTABLE_NAME" "${batch[@]}" | awk -F': ' '{if ($2 ~ /^[0-9]+(\.[0-9]+)*$/) print $2}')
             batch=()  # limpa o lote
         fi
     done
 
     # Se sobrar algum lote incompleto, executa também
     if (( ${#batch[@]} > 0 )); then
-        local versao=$("./$EXECUTABLE_NAME" "${batch[@]}" | awk -F': ' '{if ($2 ~ /^[0-9]+(\.[0-9]+)*$/) print $2}')
-        echo "$versao"
+        while IFS= read -r versao; do
+            adicionar_versao "$versao"
+        done < <("./$EXECUTABLE_NAME" "${batch[@]}" | awk -F': ' '{if ($2 ~ /^[0-9]+(\.[0-9]+)*$/) print $2}')
+    fi
+
+    echo "Versões encontradas:"
+    for ver in $package_versions; do
+        echo "$ver"
+    done
+}
+
+adicionar_versao(){
+    local nova_versao="$1"
+    local existe=0
+    for v in "${package_versions[@]}"; do
+        if [[ "$v" == "$nova_versao" ]]; then
+            existe=1
+            break
+        fi
+    done
+    if (( ! existe )); then
+        package_versions+=("$nova_versao")
     fi
 }
 
@@ -298,7 +320,7 @@ gcc "$C_SOURCE_FILE" -o "$EXECUTABLE_NAME"
 # Check if compilation was succesfuk
 if [ $? -eq 0 ]; then
     echo "Compilation of $C_SOURCE_FILE was successful. Executable name -> $EXECUTABLE_NAME"
-    "./$EXECUTABLE_NAME" "/home/stuepp/Documents/ufpr-repo-fedora/0ad-0.0.26-30.fc42.x86_64.rpm"
+    #"./$EXECUTABLE_NAME" "/home/stuepp/Documents/ufpr-repo-fedora/0ad-0.0.26-30.fc42.x86_64.rpm"
 fi
 
 echo "-----------------------------------"
