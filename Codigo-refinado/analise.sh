@@ -16,6 +16,8 @@ declare -A ALGO_MAP=(
 
 declare -a package_versions
 
+declare -a alg_hash_e_tamanhos_usados
+
 # --- Funções ---
 
 chave_usada_para_assinar_pacote(){
@@ -24,6 +26,26 @@ chave_usada_para_assinar_pacote(){
     for pacote in $REPO_PATH; do
         # Buscando o key id do pacote
         local sig_line=$(rpm -qi "$pacote" | grep Signature)
+        
+        # Para não repetir o for com grep Signatura, pegar o alg de hash já aqui
+        local alg_hash_e_tamanho=$(echo "$sig_line" | grep -oE 'SHA[0-9]+')
+
+        if (( ${#alg_hash_e_tamanhos_usados[@]} )); then
+            for hash_tam in "${alg_hash_e_tamanhos_usados[@]}"; do
+                local dif=0
+                if [[ "$alg_hash_e_tamanho" == "$hash_tam" ]]; then
+                    dif=1
+                    break
+                    #alg_hash_e_tamanhos_usados+=("$alg_hash_e_tamanho")
+                fi
+            done
+            if [[ $dif -eq 0 ]]; then
+                alg_hash_e_tamanhos_usados+=("$alg_hash_e_tamanho")
+            fi
+        else
+            alg_hash_e_tamanhos_usados+=($alg_hash_e_tamanho)
+        fi
+        
         # Passa para o próximo pacote caso o atual não esteja assinado
         if echo "$sig_line" | grep -q "(none)" || [[ -z "$sig_line" ]]; then
             continue
@@ -62,9 +84,9 @@ chave_usada_para_assinar_pacote(){
 
     echo
     echo "Total de pacotes assinados: $TOTAL_DE_PACOTES_ASSINADOS"
-
-    # Adicionar contagem dos pacotes que foram assinados
-    # Contagem dos pacotes assinados e não assinados
+    local total_de_pacotes=$(ls $REPO_PATH | wc -l)
+    local nao_assinados=$(($total_de_pacotes-$TOTAL_DE_PACOTES_ASSINADOS))
+    echo "Total de pacotes não assinados: $nao_assinados"
 }
 
 algoritmos_criptograficos_usados_e_tamanhos_de_chave(){
@@ -116,6 +138,12 @@ algoritmos_criptograficos_usados_e_tamanhos_de_chave(){
         rpm -qi "$k" | gpg
         # para chaves intaladas precisa-se buscar a chave de verdade (aqui se está olhando um pacote da chave) para poder extrair se tiver
         # data de expiração, e assim calcular tempo de vida
+    done
+
+    echo
+    echo " Algoritmo de hash e tamanho utilizados"
+    for pv in "${alg_hash_e_tamanhos_usados[@]}"; do
+        echo "$pv"
     done
 }
 
