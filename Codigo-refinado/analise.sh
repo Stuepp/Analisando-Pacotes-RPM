@@ -26,7 +26,14 @@ chave_usada_para_assinar_pacote(){
     for pacote in $REPO_PATH; do
         # Buscando o key id do pacote
         local sig_line=$(rpm -qi "$pacote" | grep Signature)
+
         
+        # Passa para o próximo pacote caso o atual não esteja assinado
+        if echo "$sig_line" | grep -q "(none)" || [[ -z "$sig_line" ]]; then
+            continue
+        fi
+
+
         # Para não repetir o for com grep Signatura, pegar o alg de hash já aqui
         local alg_hash_e_tamanho=$(echo "$sig_line" | grep -oE 'SHA[0-9]+')
 
@@ -44,11 +51,6 @@ chave_usada_para_assinar_pacote(){
             fi
         else
             alg_hash_e_tamanhos_usados+=($alg_hash_e_tamanho)
-        fi
-        
-        # Passa para o próximo pacote caso o atual não esteja assinado
-        if echo "$sig_line" | grep -q "(none)" || [[ -z "$sig_line" ]]; then
-            continue
         fi
 
         ((TOTAL_DE_PACOTES_ASSINADOS++))
