@@ -257,6 +257,27 @@ verifica_versao_RPM_do_pacote(){
     fi
 }
 
+
+verifica_RPM(){
+    local batch_size=3
+    local batch=()
+
+    for pacote in $REPO_PATH; do
+        batch+=("$pacote")
+        if (( ${#batch[@]} == batch_size )); then
+            local versao=$("./$EXECUTABLE_NAME" "${batch[@]}" | awk -F': ' '{if ($2 ~ /^[0-9]+(\.[0-9]+)*$/) print $2}')
+            echo "$versao"
+            batch=()  # limpa o lote
+        fi
+    done
+
+    # Se sobrar algum lote incompleto, executa também
+    if (( ${#batch[@]} > 0 )); then
+        local versao=$("./$EXECUTABLE_NAME" "${batch[@]}" | awk -F': ' '{if ($2 ~ /^[0-9]+(\.[0-9]+)*$/) print $2}')
+        echo "$versao"
+    fi
+}
+
 # --- Main ---
 echo 
 echo "Conferindo as chaves usadas para assinar pacotes:"
@@ -268,6 +289,19 @@ echo "Conferindo algoritmos criptográficos usados e tamanhos de chave utilizado
 
 algoritmos_criptograficos_usados_e_tamanhos_de_chave
 
+
+C_SOURCE_FILE="rpmver.c"
+EXECUTABLE_NAME="rpmver"
+
+gcc "$C_SOURCE_FILE" -o "$EXECUTABLE_NAME"
+
+# Check if compilation was succesfuk
+if [ $? -eq 0 ]; then
+    echo "Compilation of $C_SOURCE_FILE was successful. Executable name -> $EXECUTABLE_NAME"
+    "./$EXECUTABLE_NAME" "/home/stuepp/Documents/ufpr-repo-fedora/0ad-0.0.26-30.fc42.x86_64.rpm"
+fi
+
 echo "-----------------------------------"
 echo "Verificando versão RPM dos pacotes:"
-verifica_versao_RPM_do_pacote
+#verifica_versao_RPM_do_pacote
+verifica_RPM
