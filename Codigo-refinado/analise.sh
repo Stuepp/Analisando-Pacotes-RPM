@@ -101,20 +101,20 @@ chave_usada_para_assinar_pacote(){
         fi
         
     done
-    echo "Chaves usadas para assinar os pacotes:"
+    echo -e "\tChaves usadas para assinar os pacotes:"
     for k in ${list_key_ids_used}; do
-        rpm -q gpg-pubkey --qf '%{NAME}-%{VERSION}-%{RELEASE}\t%{SUMMARY}\n' | grep "$k"
+        echo -e "\t\t$(rpm -q gpg-pubkey --qf '%{NAME}-%{VERSION}-%{RELEASE}\t%{SUMMARY}\n' | grep "$k")"
     done
 
     echo
-    echo "Total de chaves com assinatura OK: $SIG_OK"
-    echo "Total de chaves com assinatura NOT OK: $SIG_NOK"
+    echo -e "\tTotal de chaves com assinatura OK: $SIG_OK"
+    echo -e "\tTotal de chaves com assinatura NOT OK: $SIG_NOK"
 
     echo
-    echo "Total de pacotes assinados: $TOTAL_DE_PACOTES_ASSINADOS"
+    echo -e "\tTotal de pacotes assinados: $TOTAL_DE_PACOTES_ASSINADOS"
     local total_de_pacotes=$(ls $REPO_PATH | wc -l)
     local nao_assinados=$(($total_de_pacotes-$TOTAL_DE_PACOTES_ASSINADOS))
-    echo "Total de pacotes não assinados: $nao_assinados"
+    echo -e "\tTotal de pacotes não assinados: $nao_assinados"
     echo -e
 }
 
@@ -125,11 +125,11 @@ algoritmos_criptograficos_usados_e_tamanhos_de_chave(){
     # Para mudar a analise e verificar todas as chaves do fedora, basta alterar para ser um for do dir
     # Isso faz com que se possa ver o histórico das chaves e sua evolução / mudanças
 
-    echo "\t Chave do dir /etc/pki/rpm-gpg"
+    echo -e "\tChave do dir /etc/pki/rpm-gpg"
 
     local fedora_in_use_key=$(ls "$RPM_KEYS_DIR" | head -1)
     # Expoẽ qual chave está sendo analizada
-    echo "Chave sendo verificada: $fedora_in_use_key"
+    echo -e "\tChave sendo verificada: $fedora_in_use_key"
     # Busca as informaçãoes da chave e com awwk filtra para as informações de interesse
     local key_info=$(gpg --show-keys --with-colons "$RPM_KEYS_DIR/$fedora_in_use_key" 2>/dev/null | awk -F: '$1 == "pub" {print $3 ":" $4 ":" $6 ":" $7}')
     # Guarda as informações em variaveis separadas
@@ -153,26 +153,26 @@ algoritmos_criptograficos_usados_e_tamanhos_de_chave(){
     
 
     local algo_name=${ALGO_MAP[$algo_id]:-"Desconhecido($algo_id)"}
-    echo "Algoritimo utilizado: $algo_name -- Tamanho: $size_bits -- Data de criação: $creation_date -- Data de expiração: $expiration_date -- Tempo de vida: $lifespan"
+    echo -e "\tAlgoritimo utilizado: $algo_name -- Tamanho: $size_bits -- Data de criação: $creation_date -- Data de expiração: $expiration_date -- Tempo de vida: $lifespan"
 
     echo
-    echo "\t Verificando agora chaves utilizadas pelos pacotes"
+    echo -e "\tVerificando agora chaves utilizadas pelos pacotes"
     for k in ${list_key_ids_used}; do
-        echo "Chave sendo verificada:"
-        rpm -q gpg-pubkey --qf '%{NAME}-%{VERSION}-%{RELEASE}\t%{SUMMARY}\n' | grep "$k"
+        echo -e "\t\tChave sendo verificada:"
+        echo -e "\t\t$(rpm -q gpg-pubkey --qf '%{NAME}-%{VERSION}-%{RELEASE}\t%{SUMMARY}\n' | grep "$k")"
         echo
         local build_date=$(rpm -qi $k | grep "Build Date")
-        echo "$build_date"
+        echo -e "\t\t$build_date"
         echo
-        rpm -qi "$k" | gpg
+        echo -e "\t\t$(rpm -qi "$k" | gpg)"
         # para chaves intaladas precisa-se buscar a chave de verdade (aqui se está olhando um pacote da chave) para poder extrair se tiver
         # data de expiração, e assim calcular tempo de vida
     done
 
     echo
-    echo " Algoritmo de hash e tamanho utilizados"
+    echo -e "\tAlgoritmo de hash e tamanho utilizados"
     for pv in "${alg_hash_e_tamanhos_usados[@]}"; do
-        echo "$pv"
+        echo -e "\t\t$pv"
     done
 }
 
@@ -345,7 +345,9 @@ gcc "$C_SOURCE_FILE" -o "$EXECUTABLE_NAME"
 
 # Check if compilation was succesfuk
 if [ $? -eq 0 ]; then
+    echo
     echo "Compilation of $C_SOURCE_FILE was successful. Executable name -> $EXECUTABLE_NAME"
+    echo
     #"./$EXECUTABLE_NAME" "/home/stuepp/Documents/ufpr-repo-fedora/0ad-0.0.26-30.fc42.x86_64.rpm"
 fi
 
