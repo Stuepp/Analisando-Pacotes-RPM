@@ -18,6 +18,9 @@ declare -a package_versions
 
 declare -a alg_hash_e_tamanhos_usados
 
+SIG_OK=0
+SIG_NOK=0
+
 # --- Funções ---
 
 package_hashAlg_hashSize(){
@@ -42,7 +45,16 @@ package_hashAlg_hashSize(){
 }
 
 verificando_assinatura() {
-    
+    local package="$1"
+
+    local signature_status=$(rpm -K "$package")
+
+    local okay_not=$(echo "$signature_status" | grep -oE "NOT OK")
+    if [[ "$okay_not" == "NOT OK" ]]; then
+        ((SIG_NOK++))
+    else
+        ((SIG_OK++))
+    fi
 }
 
 chave_usada_para_assinar_pacote(){
@@ -52,18 +64,18 @@ chave_usada_para_assinar_pacote(){
         # Buscando o key id do pacote
         local sig_line=$(rpm -qi "$pacote" | grep Signature)
 
-        
         # Passa para o próximo pacote caso o atual não esteja assinado
         # Se o pacote não estiver assinado, pula ele
         local is_signed=$(echo "$sig_line" | grep -oE "\(none\)")
         if [[ "$is_signed" == "(none)" ]]; then
             continue
         fi
+        ((TOTAL_DE_PACOTES_ASSINADOS++))
 
         # Para não repetir o for com grep Signatura, pegar o alg de hash já aqui
         package_hashAlg_hashSize "$sig_line"
-
-        ((TOTAL_DE_PACOTES_ASSINADOS++))
+        # Confira se a assinatura pode ser verificada corretamente -- usando rpm -K
+        verificando_assinatura "$pacote" # deixou o código imensamente mais lento...
 
         local key_id=$(echo "$sig_line" | awk '{print $NF}')
         local short_key_id=${key_id: -8}
@@ -95,10 +107,15 @@ chave_usada_para_assinar_pacote(){
     done
 
     echo
+    echo "Total de chaves com assinatura OK: $SIG_OK"
+    echo "Total de chaves com assinatura NOT OK: $SIG_NOK"
+
+    echo
     echo "Total de pacotes assinados: $TOTAL_DE_PACOTES_ASSINADOS"
     local total_de_pacotes=$(ls $REPO_PATH | wc -l)
     local nao_assinados=$(($total_de_pacotes-$TOTAL_DE_PACOTES_ASSINADOS))
     echo "Total de pacotes não assinados: $nao_assinados"
+    echo -e
 }
 
 algoritmos_criptograficos_usados_e_tamanhos_de_chave(){
