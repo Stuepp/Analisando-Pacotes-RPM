@@ -44,6 +44,30 @@ package_hashAlg_hashSize(){
     fi
 }
 
+chave_no_sistema() {
+    local key="$1"
+
+    if [[ -n "$key" ]]; then
+        # Confere se a lista é vazia ou não
+        if (( ${#list_key_ids_used[@]} )); then
+            # como a lista não está vazia deve verificar se a nova chave encontrada
+            # é diferente das chaves já registradas
+            for k in ${list_key_ids_used}; do
+                if [ "${k}" != "$key" ]; then 
+                    list_key_ids_used+=($key)
+                fi
+            done
+        else # caso vazia
+            list_key_ids_used+=($key)
+        fi
+    else
+        # Caso seja uma chave não listada, adicionar unknown - desconhecida
+        list_key_ids_used+=("desconhecida")
+    fi
+}
+
+# O problema dessa função no momento é que só estou separando em OK e NOT OKAY
+# ignorando se uma assinatura é OK mas só não está no chaveiro
 verificando_assinatura() {
     local package="$1"
 
@@ -75,46 +99,33 @@ chave_usada_para_assinar_pacote(){
         # Para não repetir o for com grep Signatura, pegar o alg de hash já aqui
         package_hashAlg_hashSize "$sig_line"
         # Confira se a assinatura pode ser verificada corretamente -- usando rpm -K
-        verificando_assinatura "$pacote" # deixou o código imensamente mais lento...
+        #verificando_assinatura "$pacote" # deixou o código imensamente mais lento...
 
         local key_id=$(echo "$sig_line" | awk '{print $NF}')
         local short_key_id=${key_id: -8}
         # Pegando a chave usada para assinar o pacote através do key id, com seus últimos 8 digitos
         local key_used=$(rpm -q gpg-pubkey --qf '%{NAME}-%{VERSION}-%{RELEASE}\t%{SUMMARY}\n' | grep "$short_key_id")
         # Confere se a chave utilizada faz parte das chaves listadas pelo sistema...
-        if [[ -n "$key_used" ]]; then
-            # Confere se a lista é vazia ou não
-            if (( ${#list_key_ids_used[@]} )); then
-                # como a lista não está vazia deve verificar se a nova chave encontrada
-                # é diferente das chaves já registradas
-                for k in ${list_key_ids_used}; do
-                    if [ "${k}" != "$key_used" ]; then 
-                        list_key_ids_used+=($key_used)
-                    fi
-                done
-            else # caso vazia
-                list_key_ids_used+=($key_used)
-        fi
-        else
-            # Caso seja uma chave não listada, adicionar unknown - desconhecida
-            list_key_ids_used+=("desconhecida")
-        fi
+        chave_no_sistema "$key_used"
         
     done
-    echo "Chaves usadas para assinar os pacotes:"
+
+
+
+    echo -e "\tChaves usadas para assinar os pacotes:"
     for k in ${list_key_ids_used}; do
         rpm -q gpg-pubkey --qf '%{NAME}-%{VERSION}-%{RELEASE}\t%{SUMMARY}\n' | grep "$k"
     done
 
     echo
-    echo "Total de chaves com assinatura OK: $SIG_OK"
-    echo "Total de chaves com assinatura NOT OK: $SIG_NOK"
+    echo -e "\tTotal de chaves com assinatura OK: $SIG_OK"
+    echo -e "\tTotal de chaves com assinatura NOT OK: $SIG_NOK"
 
     echo
-    echo "Total de pacotes assinados: $TOTAL_DE_PACOTES_ASSINADOS"
+    echo -e "\tTotal de pacotes assinados: $TOTAL_DE_PACOTES_ASSINADOS"
     local total_de_pacotes=$(ls $REPO_PATH | wc -l)
     local nao_assinados=$(($total_de_pacotes-$TOTAL_DE_PACOTES_ASSINADOS))
-    echo "Total de pacotes não assinados: $nao_assinados"
+    echo -e "\tTotal de pacotes não assinados: $nao_assinados"
     echo -e
 }
 
