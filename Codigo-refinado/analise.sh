@@ -29,7 +29,8 @@ chave_usada_para_assinar_pacote(){
 
         
         # Passa para o próximo pacote caso o atual não esteja assinado
-        if echo "$sig_line" | grep -q "(none)" || [[ -z "$sig_line" ]]; then
+        local is_signed=$(echo "$sig_line" | grep -oE "\(none\)")
+        if [[ "$is_signed" == "(none)" ]]; then
             continue
         fi
 
@@ -306,10 +307,10 @@ echo "Conferindo as chaves usadas para assinar pacotes:"
 
 chave_usada_para_assinar_pacote
 
-echo "-----------------------------------"
-echo "Conferindo algoritmos criptográficos usados e tamanhos de chave utilizados:"
+#echo "-----------------------------------"
+#echo "Conferindo algoritmos criptográficos usados e tamanhos de chave utilizados:"
 
-algoritmos_criptograficos_usados_e_tamanhos_de_chave
+#algoritmos_criptograficos_usados_e_tamanhos_de_chave
 
 
 C_SOURCE_FILE="rpmver.c"
@@ -323,7 +324,7 @@ if [ $? -eq 0 ]; then
     #"./$EXECUTABLE_NAME" "/home/stuepp/Documents/ufpr-repo-fedora/0ad-0.0.26-30.fc42.x86_64.rpm"
 fi
 
-echo "-----------------------------------"
-echo "Verificando versão RPM dos pacotes:"
+#echo "-----------------------------------"
+#echo "Verificando versão RPM dos pacotes:"
 #verifica_versao_RPM_do_pacote
-verifica_RPM
+#verifica_RPM
