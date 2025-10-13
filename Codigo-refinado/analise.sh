@@ -118,6 +118,15 @@ chave_usada_para_assinar_pacote(){
     echo -e
 }
 
+
+quem_certificou(){
+    local id_chave="$1"
+    # Gera um arquivo da chave, para poder recuperar ela e analisar melhor
+    rpm -qi "$id_chave" | sed -n '/-----BEGIN PGP PUBLIC KEY BLOCK-----/,/-----END PGP PUBLIC KEY BLOCK-----/p' > chave_exportada.asc
+
+    echo -e "\t\tCertificada por: $(gpg -v chave_exportada.asc 2>&1 | sed -n '$p')"
+}
+
 algoritmos_criptograficos_usados_e_tamanhos_de_chave(){
     # Para o Fedora apenas nos interessa a chave de sua versão atual
     # Pois apenas ela é efetivamente usada
@@ -157,12 +166,14 @@ algoritmos_criptograficos_usados_e_tamanhos_de_chave(){
 
     echo
     echo -e "\tVerificando agora chaves utilizadas pelos pacotes"
+    echo
     for k in ${list_key_ids_used}; do
         echo -e "\t\tChave sendo verificada:"
         echo -e "\t\t$(rpm -q gpg-pubkey --qf '%{NAME}-%{VERSION}-%{RELEASE}\t%{SUMMARY}\n' | grep "$k")"
         echo
         local build_date=$(rpm -qi $k | grep "Build Date")
         echo -e "\t\t$build_date"
+        quem_certificou "$k"
         echo
         echo -e "\t\t$(rpm -qi "$k" | gpg)"
         # para chaves intaladas precisa-se buscar a chave de verdade (aqui se está olhando um pacote da chave) para poder extrair se tiver
@@ -337,6 +348,7 @@ chave_usada_para_assinar_pacote
 #echo "Conferindo algoritmos criptográficos usados e tamanhos de chave utilizados:"
 
 algoritmos_criptograficos_usados_e_tamanhos_de_chave
+
 
 C_SOURCE_FILE="rpmver.c"
 EXECUTABLE_NAME="rpmver"
