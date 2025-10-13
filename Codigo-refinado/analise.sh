@@ -29,6 +29,7 @@ chave_usada_para_assinar_pacote(){
 
         
         # Passa para o próximo pacote caso o atual não esteja assinado
+        # Se o pacote não estiver assinado, pula ele
         local is_signed=$(echo "$sig_line" | grep -oE "\(none\)")
         if [[ "$is_signed" == "(none)" ]]; then
             continue
