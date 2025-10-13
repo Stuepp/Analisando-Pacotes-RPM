@@ -20,6 +20,31 @@ declare -a alg_hash_e_tamanhos_usados
 
 # --- Funções ---
 
+package_hashAlg_hashSize(){
+    local teste="$1"
+    local alg_hash_e_tamanho=$(echo "$teste" | grep -oE 'SHA[0-9]+')
+
+    if (( ${#alg_hash_e_tamanhos_usados[@]} )); then
+        for hash_tam in "${alg_hash_e_tamanhos_usados[@]}"; do
+            local dif=0
+            if [[ "$alg_hash_e_tamanho" == "$hash_tam" ]]; then
+                dif=1
+                break
+                #alg_hash_e_tamanhos_usados+=("$alg_hash_e_tamanho")
+            fi
+        done
+        if [[ $dif -eq 0 ]]; then
+            alg_hash_e_tamanhos_usados+=("$alg_hash_e_tamanho")
+        fi
+    else
+        alg_hash_e_tamanhos_usados+=($alg_hash_e_tamanho)
+    fi
+}
+
+verificando_assinatura() {
+    
+}
+
 chave_usada_para_assinar_pacote(){
     local TOTAL_DE_PACOTES_ASSINADOS=0
 
@@ -35,25 +60,8 @@ chave_usada_para_assinar_pacote(){
             continue
         fi
 
-
         # Para não repetir o for com grep Signatura, pegar o alg de hash já aqui
-        local alg_hash_e_tamanho=$(echo "$sig_line" | grep -oE 'SHA[0-9]+')
-
-        if (( ${#alg_hash_e_tamanhos_usados[@]} )); then
-            for hash_tam in "${alg_hash_e_tamanhos_usados[@]}"; do
-                local dif=0
-                if [[ "$alg_hash_e_tamanho" == "$hash_tam" ]]; then
-                    dif=1
-                    break
-                    #alg_hash_e_tamanhos_usados+=("$alg_hash_e_tamanho")
-                fi
-            done
-            if [[ $dif -eq 0 ]]; then
-                alg_hash_e_tamanhos_usados+=("$alg_hash_e_tamanho")
-            fi
-        else
-            alg_hash_e_tamanhos_usados+=($alg_hash_e_tamanho)
-        fi
+        package_hashAlg_hashSize "$sig_line"
 
         ((TOTAL_DE_PACOTES_ASSINADOS++))
 
@@ -311,8 +319,7 @@ chave_usada_para_assinar_pacote
 #echo "-----------------------------------"
 #echo "Conferindo algoritmos criptográficos usados e tamanhos de chave utilizados:"
 
-#algoritmos_criptograficos_usados_e_tamanhos_de_chave
-
+algoritmos_criptograficos_usados_e_tamanhos_de_chave
 
 C_SOURCE_FILE="rpmver.c"
 EXECUTABLE_NAME="rpmver"
