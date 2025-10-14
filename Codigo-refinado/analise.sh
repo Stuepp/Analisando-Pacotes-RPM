@@ -18,6 +18,8 @@ declare -a package_versions
 
 declare -a alg_hash_e_tamanhos_usados
 
+declare -a non_signed_packs
+
 SIG_OK=0
 SIG_NOK=0
 
@@ -68,6 +70,7 @@ chave_usada_para_assinar_pacote(){
         # Se o pacote não estiver assinado, pula ele
         local is_signed=$(echo "$sig_line" | grep -oE "\(none\)")
         if [[ "$is_signed" == "(none)" ]]; then
+            non_signed_packs+=($pacote)
             continue
         fi
         ((TOTAL_DE_PACOTES_ASSINADOS++))
@@ -117,6 +120,10 @@ chave_usada_para_assinar_pacote(){
     local nao_assinados=$(($total_de_pacotes-$TOTAL_DE_PACOTES_ASSINADOS))
     echo -e "\tTotal de pacotes não assinados: $nao_assinados"
     echo -e
+    echo -e "\t\tPAcotes não assinados:"
+    for p in $(non_signed_packs); do
+        echo -e "\t\t\t$p"
+    done
 }
 
 
