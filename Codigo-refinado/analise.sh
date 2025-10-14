@@ -124,7 +124,19 @@ quem_certificou(){
     # Gera um arquivo da chave, para poder recuperar ela e analisar melhor
     rpm -qi "$id_chave" | sed -n '/-----BEGIN PGP PUBLIC KEY BLOCK-----/,/-----END PGP PUBLIC KEY BLOCK-----/p' > chave_exportada.asc
 
-    echo -e "\t\tCertificada por: $(gpg -v chave_exportada.asc 2>&1 | sed -n '$p')"
+    #echo -e "\t\tCertificada por: $(gpg -v chave_exportada.asc 2>&1 | sed -n '$p')"
+
+    local sigs=$(gpg -v chave_exportada.asc 2>/dev/null | grep '^sig' | grep -Ev '\[(selfsig|keybind)\]$' | sort | uniq)
+
+    if [ -n "$sigs" ]; then
+        i=1
+        while IFS= read sig ; do
+            printf "\t\tAssinatura %d: %s\n" i sig
+            ((i++))
+        done <<<"$sigs"
+    else
+        echo -e "\t\tnenhuma assinatura encontrada"
+    fi
 }
 
 algoritmos_criptograficos_usados_e_tamanhos_de_chave(){
