@@ -2,7 +2,7 @@
 
 # --- Variáveis ---
 
-REPO_PATH="/home/stuepp/Documents/ufpr-repo-fedora/*.rpm"
+REPO_PATH="/home/stuepp/Documents/ufpr-repo-fedora/"
 
 RPM_KEYS_DIR="/etc/pki/rpm-gpg"
 
@@ -60,7 +60,7 @@ verificando_assinatura() {
 chave_usada_para_assinar_pacote(){
     local TOTAL_DE_PACOTES_ASSINADOS=0
 
-    for pacote in $REPO_PATH; do
+    for pacote in "$REPO_PATH"/*.rpm; do
         # Buscando o key id do pacote
         local sig_line=$(rpm -qi "$pacote" | grep Signature)
 
@@ -195,7 +195,7 @@ verifica_versao_RPM_do_pacote(){
     local n_pacotes=0
     local start_time=$(date +%s)
 
-    for pacote in $REPO_PATH; do
+    for pacote in "$REPO_PATH"/*.rpm; do
         ((n_pacotes++))
         local versao=$(file "$pacote" | grep -o 'RPM v[0-9.]\+')
         #echo "Pacote: $(basename "$pacote") -- Versão RPM: $versao"
@@ -301,7 +301,7 @@ verifica_RPM(){
     local batch=()
     local package_versions=()
 
-    for pacote in $REPO_PATH; do
+    for pacote in "$REPO_PATH"/*.rpm; do
         batch+=("$pacote")
         if (( ${#batch[@]} == batch_size )); then
             while IFS= read -r versao; do
