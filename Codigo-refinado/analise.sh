@@ -110,9 +110,10 @@ chave_usada_para_assinar_pacote(){
     echo -e "\tTotal de chaves com assinatura OK: $SIG_OK"
     echo -e "\tTotal de chaves com assinatura NOT OK: $SIG_NOK"
 
-    echo
-    echo -e "\tTotal de pacotes assinados: $TOTAL_DE_PACOTES_ASSINADOS"
     local total_de_pacotes=$(ls $REPO_PATH | wc -l)
+    echo
+    echo -e "\tTotal de pacotes: $total_de_pacotes"
+    echo -e "\tTotal de pacotes assinados: $TOTAL_DE_PACOTES_ASSINADOS"
     local nao_assinados=$(($total_de_pacotes-$TOTAL_DE_PACOTES_ASSINADOS))
     echo -e "\tTotal de pacotes não assinados: $nao_assinados"
     echo -e
