@@ -146,21 +146,11 @@ quem_certificou(){
         echo -e "\t\tnenhuma assinatura encontrada"
     fi
 }
-
-algoritmos_criptograficos_usados_e_tamanhos_de_chave(){
-    # Para o Fedora apenas nos interessa a chave de sua versão atual
-    # Pois apenas ela é efetivamente usada
-
-    # Para mudar a analise e verificar todas as chaves do fedora, basta alterar para ser um for do dir
-    # Isso faz com que se possa ver o histórico das chaves e sua evolução / mudanças
-
-    echo -e "\tChave do dir /etc/pki/rpm-gpg"
-
-    local fedora_in_use_key=$(ls "$RPM_KEYS_DIR" | head -1)
-    # Expoẽ qual chave está sendo analizada
-    echo -e "\tChave sendo verificada: $fedora_in_use_key"
-    # Busca as informaçãoes da chave e com awwk filtra para as informações de interesse
-    local key_info=$(gpg --show-keys --with-colons "$RPM_KEYS_DIR/$fedora_in_use_key" 2>/dev/null | awk -F: '$1 == "pub" {print $3 ":" $4 ":" $6 ":" $7}')
+# Coleta algoritmo utilizado, tamanho, data de criação, data de expiração, tempo de vida
+coleta_info_da_chave(){
+    local key="$1"
+    # Busca as informaçãoes da chave e com awk filtra para as informações de interesse
+    local key_info=$(gpg --show-keys --with-colons "$key" 2>/dev/null | awk -F: '$1 == "pub" {print $3 ":" $4 ":" $6 ":" $7}')
     # Guarda as informações em variaveis separadas
     local size_bits algo_id creation_ts expiration_ts
     IFS=':' read -r size_bits algo_id creation_ts expiration_ts <<< "$key_info"
@@ -179,10 +169,24 @@ algoritmos_criptograficos_usados_e_tamanhos_de_chave(){
         lifespan="Indefinido"
     fi
 
-    
-
     local algo_name=${ALGO_MAP[$algo_id]:-"Desconhecido($algo_id)"}
     echo -e "\tAlgoritimo utilizado: $algo_name -- Tamanho: $size_bits -- Data de criação: $creation_date -- Data de expiração: $expiration_date -- Tempo de vida: $lifespan"
+}
+
+algoritmos_criptograficos_usados_e_tamanhos_de_chave(){
+    # Para o Fedora apenas nos interessa a chave de sua versão atual
+    # Pois apenas ela é efetivamente usada
+
+    # Para mudar a analise e verificar todas as chaves do fedora, basta alterar para ser um for do dir
+    # Isso faz com que se possa ver o histórico das chaves e sua evolução / mudanças
+
+    echo -e "\tChave do dir /etc/pki/rpm-gpg"
+
+    local fedora_in_use_key=$(ls "$RPM_KEYS_DIR" | head -1)
+    # Expoẽ qual chave está sendo analizada
+    echo -e "\tChave sendo verificada: $fedora_in_use_key"
+    # Coleta algoritmo utilizado, tamanho, data de criação, data de expiração, tempo de vida e mostra no terminal com echo
+    coleta_info_da_chave "$RPM_KEYS_DIR/$fedora_in_use_key"
 
     echo
     echo -e "\tVerificando agora chaves utilizadas pelos pacotes"
