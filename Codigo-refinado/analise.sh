@@ -20,6 +20,8 @@ declare -a alg_hash_e_tamanhos_usados
 
 declare -a non_signed_packs
 
+declare -a pacotes_not_ok
+
 SIG_OK=0
 SIG_NOK=0
 
@@ -54,6 +56,7 @@ verificando_assinatura() {
     local okay_not=$(echo "$signature_status" | grep -oE "NOT OK")
     if [[ "$okay_not" == "NOT OK" ]]; then
         ((SIG_NOK++))
+        pacotes_not_ok+=($package)
     else
         ((SIG_OK++))
     fi
@@ -115,6 +118,13 @@ chave_usada_para_assinar_pacote(){
     echo -e "\tTotal de chaves com assinatura OK: $SIG_OK"
     echo -e "\tTotal de chaves com assinatura NOT OK: $SIG_NOK"
 
+    if (( ${#pacotes_not_ok[@]} )); then
+        echo -e "\tPacotes NOT OK:"
+        for p in ${pacotes_not_ok}; do
+        echo -e "\t\t$p"
+        done
+    fi
+
     local total_de_pacotes=$(ls $REPO_PATH | wc -l) # aqui se considera que todos os arquivos são .rpm, mas caso haja 1 que não seja, já está errado. Mas no caso do repositorio da UFPR está tudo ok
     echo
     echo -e "\tTotal de pacotes: $total_de_pacotes"
@@ -127,8 +137,6 @@ chave_usada_para_assinar_pacote(){
         for p in ${non_signed_packs}; do
             echo -e "\t\t\t$p"
         done
-    else # caso vazia
-        list_key_ids_used+=($key_used)
     fi
 }
 
