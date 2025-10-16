@@ -61,6 +61,7 @@ verificando_assinatura() {
 
 chave_usada_para_assinar_pacote(){
     local TOTAL_DE_PACOTES_ASSINADOS=0
+    local nao_assinados=0
 
     for pacote in "$REPO_PATH"/*.rpm; do
         # Buscando o key id do pacote
@@ -71,6 +72,7 @@ chave_usada_para_assinar_pacote(){
         local is_signed=$(echo "$sig_line" | grep -oE "\(none\)")
         if [[ "$is_signed" == "(none)" ]]; then
             non_signed_packs+=($pacote)
+            ((nao_assinados++))
             continue
         fi
         ((TOTAL_DE_PACOTES_ASSINADOS++))
@@ -113,17 +115,21 @@ chave_usada_para_assinar_pacote(){
     echo -e "\tTotal de chaves com assinatura OK: $SIG_OK"
     echo -e "\tTotal de chaves com assinatura NOT OK: $SIG_NOK"
 
-    local total_de_pacotes=$(ls $REPO_PATH | wc -l)
+    local total_de_pacotes=$(ls $REPO_PATH | wc -l) # aqui se considera que todos os arquivos são .rpm, mas caso haja 1 que não seja, já está errado. Mas no caso do repositorio da UFPR está tudo ok
     echo
     echo -e "\tTotal de pacotes: $total_de_pacotes"
     echo -e "\tTotal de pacotes assinados: $TOTAL_DE_PACOTES_ASSINADOS"
-    local nao_assinados=$(($total_de_pacotes-$TOTAL_DE_PACOTES_ASSINADOS))
     echo -e "\tTotal de pacotes não assinados: $nao_assinados"
     echo -e
-    echo -e "\t\tPAcotes não assinados:"
-    for p in $(non_signed_packs); do
-        echo -e "\t\t\t$p"
-    done
+    # Confere se a lista é vazia ou não
+    if (( ${#non_signed_packs[@]} )); then
+        echo -e "\tPacotes não assinados:"
+        for p in ${non_signed_packs}; do
+            echo -e "\t\t\t$p"
+        done
+    else # caso vazia
+        list_key_ids_used+=($key_used)
+    fi
 }
 
 
@@ -165,7 +171,7 @@ coleta_info_da_chave(){
     fi
 
     local algo_name=${ALGO_MAP[$algo_id]:-"Desconhecido($algo_id)"}
-    echo -e "\tAlgoritimo utilizado: $algo_name -- Tamanho: $size_bits -- Data de criação: $creation_date -- Data de expiração: $expiration_date -- Tempo de vida: $lifespan"
+    echo -e "\t\tAlgoritimo utilizado: $algo_name -- Tamanho: $size_bits -- Data de criação: $creation_date -- Data de expiração: $expiration_date -- Tempo de vida: $lifespan"
 
     quem_certificou "$key"
 }
@@ -181,7 +187,7 @@ algoritmos_criptograficos_usados_e_tamanhos_de_chave(){
 
     local fedora_in_use_key=$(ls "$RPM_KEYS_DIR" | head -1)
     # Expoẽ qual chave está sendo analizada
-    echo -e "\tChave sendo verificada: $fedora_in_use_key"
+    echo -e "\t\tChave sendo verificada: $fedora_in_use_key"
     # Coleta algoritmo utilizado, tamanho, data de criação, data de expiração, tempo de vida, quem assinou e mostra no terminal com echo
     coleta_info_da_chave "$RPM_KEYS_DIR/$fedora_in_use_key"
 
@@ -362,8 +368,8 @@ echo "Conferindo as chaves usadas para assinar pacotes:"
 
 chave_usada_para_assinar_pacote
 
-#echo "-----------------------------------"
-#echo "Conferindo algoritmos criptográficos usados e tamanhos de chave utilizados:"
+echo "-----------------------------------"
+echo "Conferindo algoritmos criptográficos usados e tamanhos de chave utilizados:"
 echo
 algoritmos_criptograficos_usados_e_tamanhos_de_chave
 
@@ -381,7 +387,7 @@ if [ $? -eq 0 ]; then
     #"./$EXECUTABLE_NAME" "/home/stuepp/Documents/ufpr-repo-fedora/0ad-0.0.26-30.fc42.x86_64.rpm"
 fi
 
-#echo "-----------------------------------"
-#echo "Verificando versão RPM dos pacotes:"
-#verifica_versao_RPM_do_pacote
-#verifica_RPM
+echo "-----------------------------------"
+echo "Verificando versão RPM dos pacotes:"
+verifica_versao_RPM_do_pacote
+verifica_RPM
