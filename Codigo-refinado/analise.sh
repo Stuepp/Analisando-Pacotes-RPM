@@ -128,13 +128,8 @@ chave_usada_para_assinar_pacote(){
 
 
 quem_certificou(){
-    local id_chave="$1"
-    # Gera um arquivo da chave, para poder recuperar ela e analisar melhor
-    rpm -qi "$id_chave" | sed -n '/-----BEGIN PGP PUBLIC KEY BLOCK-----/,/-----END PGP PUBLIC KEY BLOCK-----/p' > chave_exportada.asc
-
-    #echo -e "\t\tCertificada por: $(gpg -v chave_exportada.asc 2>&1 | sed -n '$p')"
-
-    local sigs=$(gpg -v chave_exportada.asc 2>/dev/null | grep '^sig' | grep -Ev '\[(selfsig|keybind)\]$' | sort | uniq)
+    local key="$1"
+    local sigs=$(gpg -v "$key" 2>/dev/null | grep '^sig' | grep -Ev '\[(selfsig|keybind)\]$' | sort | uniq)
 
     if [ -n "$sigs" ]; then
         i=1
@@ -171,6 +166,8 @@ coleta_info_da_chave(){
 
     local algo_name=${ALGO_MAP[$algo_id]:-"Desconhecido($algo_id)"}
     echo -e "\tAlgoritimo utilizado: $algo_name -- Tamanho: $size_bits -- Data de criação: $creation_date -- Data de expiração: $expiration_date -- Tempo de vida: $lifespan"
+
+    quem_certificou "$key"
 }
 
 algoritmos_criptograficos_usados_e_tamanhos_de_chave(){
@@ -185,23 +182,20 @@ algoritmos_criptograficos_usados_e_tamanhos_de_chave(){
     local fedora_in_use_key=$(ls "$RPM_KEYS_DIR" | head -1)
     # Expoẽ qual chave está sendo analizada
     echo -e "\tChave sendo verificada: $fedora_in_use_key"
-    # Coleta algoritmo utilizado, tamanho, data de criação, data de expiração, tempo de vida e mostra no terminal com echo
+    # Coleta algoritmo utilizado, tamanho, data de criação, data de expiração, tempo de vida, quem assinou e mostra no terminal com echo
     coleta_info_da_chave "$RPM_KEYS_DIR/$fedora_in_use_key"
 
     echo
     echo -e "\tVerificando agora chaves utilizadas pelos pacotes"
     echo
     for k in ${list_key_ids_used}; do
-        echo -e "\t\tChave sendo verificada:"
-        echo -e "\t\t$(rpm -q gpg-pubkey --qf '%{NAME}-%{VERSION}-%{RELEASE}\t%{SUMMARY}\n' | grep "$k")"
-        echo
-        local build_date=$(rpm -qi $k | grep "Build Date")
-        echo -e "\t\t$build_date"
-        quem_certificou "$k"
+        echo -e "\t\tChave sendo verificada: $(rpm -q gpg-pubkey --qf '%{NAME}-%{VERSION}-%{RELEASE}\t%{SUMMARY}\n' | grep "$k")"
+        # Precisa transformar em um arquivo para poder ser analisado
+        rpm -qi "$k" | sed -n '/-----BEGIN PGP PUBLIC KEY BLOCK-----/,/-----END PGP PUBLIC KEY BLOCK-----/p' > chave_exportada.asc
+        # Coleta algoritmo utilizado, tamanho, data de criação, data de expiração, tempo de vida, quem assinou e mostra no terminal com echo
+        coleta_info_da_chave "chave_exportada.asc"
         echo
         echo -e "\t\t$(rpm -qi "$k" | gpg)"
-        # para chaves intaladas precisa-se buscar a chave de verdade (aqui se está olhando um pacote da chave) para poder extrair se tiver
-        # data de expiração, e assim calcular tempo de vida
     done
 
     echo
@@ -370,7 +364,7 @@ chave_usada_para_assinar_pacote
 
 #echo "-----------------------------------"
 #echo "Conferindo algoritmos criptográficos usados e tamanhos de chave utilizados:"
-
+echo
 algoritmos_criptograficos_usados_e_tamanhos_de_chave
 
 
