@@ -2,8 +2,8 @@
 
 # --- Variáveis ---
 
-REPO_PATH="/home/stuepp/Documents/ufpr-repo-fedora/"
-
+#REPO_PATH="/home/stuepp/Documents/ufpr-repo-fedora/"
+REPO_PATH="/home/stuepp/Documents/TCC-shell-codes/Codigo-refinado/OpenSUSE-PACKS"
 RPM_KEYS_DIR="/etc/pki/rpm-gpg"
 
 declare -a list_key_ids_used
@@ -52,13 +52,32 @@ verificando_assinatura() {
     local package="$1"
 
     local signature_status=$(rpm -K "$package")
-
     local okay_not=$(echo "$signature_status" | grep -oE "NOT OK")
     if [[ "$okay_not" == "NOT OK" ]]; then
         ((SIG_NOK++))
         pacotes_not_ok+=($package)
     else
         ((SIG_OK++))
+    fi
+}
+
+add_key_to_keyused_list() {
+    local key_id="$1"
+    # Verifica se a lista é vazia
+    if (( ${#list_key_ids_used[@]} )); then
+        # Não é vazia, então devo verificar se já está na lista
+        local same=false
+        for k in ${list_key_ids_used[@]}; do
+            if [ "${k}" == "$key_id" ]; then
+                same=true
+                break
+            fi
+        done
+        if [[ $same == false ]]; then
+            list_key_ids_used+=($key_id)
+        fi
+    else # É vazia
+        list_key_ids_used+=($key_id)
     fi
 }
 
@@ -86,32 +105,26 @@ chave_usada_para_assinar_pacote(){
         verificando_assinatura "$pacote" # deixou o código imensamente mais lento...
 
         local key_id=$(echo "$sig_line" | awk '{print $NF}')
-        local short_key_id=${key_id: -8}
-        # Pegando a chave usada para assinar o pacote através do key id, com seus últimos 8 digitos
-        local key_used=$(rpm -q gpg-pubkey --qf '%{NAME}-%{VERSION}-%{RELEASE}\t%{SUMMARY}\n' | grep "$short_key_id")
-        # Confere se a chave utilizada faz parte das chaves listadas pelo sistema...
-        if [[ -n "$key_used" ]]; then
-            # Confere se a lista é vazia ou não
-            if (( ${#list_key_ids_used[@]} )); then
-                # como a lista não está vazia deve verificar se a nova chave encontrada
-                # é diferente das chaves já registradas
-                for k in ${list_key_ids_used}; do
-                    if [ "${k}" != "$key_used" ]; then 
-                        list_key_ids_used+=($key_used)
-                    fi
-                done
-            else # caso vazia
-                list_key_ids_used+=($key_used)
-        fi
-        else
-            # Caso seja uma chave não listada, adicionar unknown - desconhecida
-            list_key_ids_used+=("desconhecida")
-        fi
+        
+        # Agora adicionar a chave a lista de chaves utilizadas
+        add_key_to_keyused_list "$key_id"
         
     done
     echo -e "\tChaves usadas para assinar os pacotes:"
-    for k in ${list_key_ids_used}; do
-        echo -e "\t\t$(rpm -q gpg-pubkey --qf '%{NAME}-%{VERSION}-%{RELEASE}\t%{SUMMARY}\n' | grep "$k")"
+    for k in ${list_key_ids_used[@]}; do
+        # Aqui é um passo para conferir se conheço a chave, ao mesmo tempo já aproveito para arrumar a forma de impressão dela
+        local short_key_id=${k: -8}
+        local key_used=$(rpm -q gpg-pubkey --qf '%{NAME}-%{VERSION}-%{RELEASE}\t%{SUMMARY}\n' | grep "$short_key_id")
+
+        if [[ -n "$key_used" ]]; then
+            # Essas chaves eu conheço, então consigo imprimir com mais detalhes
+            ech -e "\t\tConheço essa chave:"
+            echo -e "\t\t$key_used"
+        else
+            # Como essas chaves não conheço, só vou imprimir seus KeyID
+            ech -e "\t\tDesconheço essa chave:"
+            echo -e "$\t\t$k"
+        fi
     done
 
     echo
