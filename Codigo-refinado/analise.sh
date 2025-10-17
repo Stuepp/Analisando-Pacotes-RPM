@@ -133,7 +133,7 @@ chave_usada_para_assinar_pacote(){
 
     if (( ${#pacotes_not_ok[@]} )); then
         echo -e "\tPacotes NOT OK:"
-        for p in ${pacotes_not_ok}; do
+        for p in ${pacotes_not_ok[@]}; do
         echo -e "\t\t$p"
         done
     fi
