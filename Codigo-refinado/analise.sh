@@ -217,7 +217,7 @@ algoritmos_criptograficos_usados_e_tamanhos_de_chave(){
     echo
     echo -e "\tVerificando agora chaves utilizadas pelos pacotes"
     echo
-    for k in ${list_key_ids_used}; do
+    for k in ${list_key_ids_used[@]}; do
         local short_key_id=${k: -8}
         local key_used=$(rpm -q gpg-pubkey --qf '%{NAME}-%{VERSION}-%{RELEASE}\n' | grep "$short_key_id")
         # Verificação se tem a chave + se consegue formatar a saida dela
