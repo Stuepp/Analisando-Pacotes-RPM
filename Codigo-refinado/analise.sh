@@ -205,14 +205,18 @@ algoritmos_criptograficos_usados_e_tamanhos_de_chave(){
 
     # Para mudar a analise e verificar todas as chaves do fedora, basta alterar para ser um for do dir
     # Isso faz com que se possa ver o histórico das chaves e sua evolução / mudanças
-
-    echo -e "\tChave do dir /etc/pki/rpm-gpg"
-
-    local fedora_in_use_key=$(ls "$RPM_KEYS_DIR" | head -1)
-    # Expoẽ qual chave está sendo analizada
-    echo -e "\t\tChave sendo verificada: $fedora_in_use_key"
-    # Coleta algoritmo utilizado, tamanho, data de criação, data de expiração, tempo de vida, quem assinou e mostra no terminal com echo
-    coleta_info_da_chave "$RPM_KEYS_DIR/$fedora_in_use_key"
+    local os=$(cat '/etc/os-release' | head -1 | grep "Fedora")
+    if [[ -n "$os" ]]; then # Faz verificação se estamos no Fedora ou não, para analisar a(s) chave(s) do sistema
+        echo -e "\tEstamos no Fedora"
+        echo -e "\tChave do dir /etc/pki/rpm-gpg"
+        local fedora_in_use_key=$(ls "$RPM_KEYS_DIR" | head -1)
+        # Expoẽ qual chave está sendo analizada
+        echo -e "\t\tChave sendo verificada: $fedora_in_use_key"
+        # Coleta algoritmo utilizado, tamanho, data de criação, data de expiração, tempo de vida, quem assinou e mostra no terminal com echo
+        coleta_info_da_chave "$RPM_KEYS_DIR/$fedora_in_use_key"
+    else
+        echo -e "\tEstamos em uma OS diferente do Fedora"
+    fi
 
     echo
     echo -e "\tVerificando agora chaves utilizadas pelos pacotes"
