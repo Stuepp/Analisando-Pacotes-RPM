@@ -29,25 +29,28 @@ SIG_NOK=0
 
 package_hashAlg_hashSize(){
     local teste="$1"
+    local key_id=$(echo "$sig_line" | awk '{print $NF}')
     local alg_hash_e_tamanho=$(echo "$teste" | grep -oE 'SHA[0-9]+')
 
     if (( ${#alg_hash_e_tamanhos_usados[@]} )); then
-        for hash_tam in "${alg_hash_e_tamanhos_usados[@]}"; do
-            local dif=0
-            if [[ "$alg_hash_e_tamanho" == "$hash_tam" ]]; then
+        local dif=0
+        for tuple in "${alg_hash_e_tamanhos_usados[@]}"; do
+            IFS=',' read -r key hashtam <<< "$tuple"
+            if [[ "$key" ==  "$key_id" && "$hashtam" == "$alg_hash_e_tamanho" ]]; then
                 dif=1
                 break
-                #alg_hash_e_tamanhos_usados+=("$alg_hash_e_tamanho")
             fi
         done
         if [[ $dif -eq 0 ]]; then
-            alg_hash_e_tamanhos_usados+=("$alg_hash_e_tamanho")
+            local tuple="$key_id,$alg_hash_e_tamanho"
+            alg_hash_e_tamanhos_usados+=("$tuple")
         fi
     else
-        alg_hash_e_tamanhos_usados+=($alg_hash_e_tamanho)
+        local tuple="$key_id,$alg_hash_e_tamanho"
+        alg_hash_e_tamanhos_usados+=($tuple)
     fi
 }
-
+# Melhorar a função e seprar os NOT OKAY, em NOT OKAY e Assinado || NOT OKAY e Não Assinado
 verificando_assinatura() {
     local package="$1"
 
@@ -115,14 +118,13 @@ chave_usada_para_assinar_pacote(){
         # Aqui é um passo para conferir se conheço a chave, ao mesmo tempo já aproveito para arrumar a forma de impressão dela
         local short_key_id=${k: -8}
         local key_used=$(rpm -q gpg-pubkey --qf '%{NAME}-%{VERSION}-%{RELEASE}\t%{SUMMARY}\n' | grep "$short_key_id")
-
         if [[ -n "$key_used" ]]; then
             # Essas chaves eu conheço, então consigo imprimir com mais detalhes
-            ech -e "\t\tConheço essa chave:"
+            echo -e "\t\tConheço essa chave:"
             echo -e "\t\t$key_used"
         else
             # Como essas chaves não conheço, só vou imprimir seus KeyID
-            ech -e "\t\tDesconheço essa chave:"
+            echo -e "\t\tDesconheço essa chave:"
             echo -e "$\t\t$k"
         fi
     done
@@ -216,19 +218,28 @@ algoritmos_criptograficos_usados_e_tamanhos_de_chave(){
     echo -e "\tVerificando agora chaves utilizadas pelos pacotes"
     echo
     for k in ${list_key_ids_used}; do
-        echo -e "\t\tChave sendo verificada: $(rpm -q gpg-pubkey --qf '%{NAME}-%{VERSION}-%{RELEASE}\t%{SUMMARY}\n' | grep "$k")"
-        # Precisa transformar em um arquivo para poder ser analisado
-        rpm -qi "$k" | sed -n '/-----BEGIN PGP PUBLIC KEY BLOCK-----/,/-----END PGP PUBLIC KEY BLOCK-----/p' > chave_exportada.asc
-        # Coleta algoritmo utilizado, tamanho, data de criação, data de expiração, tempo de vida, quem assinou e mostra no terminal com echo
-        coleta_info_da_chave "chave_exportada.asc"
-        echo
-        echo -e "\t\t$(rpm -qi "$k" | gpg)"
+        local short_key_id=${k: -8}
+        local key_used=$(rpm -q gpg-pubkey --qf '%{NAME}-%{VERSION}-%{RELEASE}\n' | grep "$short_key_id")
+        # Verificação se tem a chave + se consegue formatar a saida dela
+        if [[ -n "$key_used" ]]; then
+            echo -e "\t\tChave sendo verificada: $(rpm -q gpg-pubkey --qf '%{NAME}-%{VERSION}-%{RELEASE}\t%{SUMMARY}\n' | grep "$short_key_id")"
+            # Precisa transformar em um arquivo para poder ser analisado
+            rpm -qi "$key_used" | sed -n '/-----BEGIN PGP PUBLIC KEY BLOCK-----/,/-----END PGP PUBLIC KEY BLOCK-----/p' > chave_exportada.asc
+            # Coleta algoritmo utilizado, tamanho, data de criação, data de expiração, tempo de vida, quem assinou e mostra no terminal com echo
+            coleta_info_da_chave "chave_exportada.asc"
+            echo -e "\t\t Verificando através do comando rpm -qi <pacote> | gpg, também dando as autorizações dessa asssinatura, ex:[SCE]"
+            echo -e "\t\t$(rpm -qi "$key_used" | gpg)"
+        else
+            echo -e "\t\tChave sendo verificada: $k"
+            echo -e "\t\tNão se tem a chave, logo não pode fazer uma análise mais a fundo, terá de baixar a chave."
+        fi
     done
 
     echo
     echo -e "\tAlgoritmo de hash e tamanho utilizados"
     for pv in "${alg_hash_e_tamanhos_usados[@]}"; do
-        echo -e "\t\t$pv"
+        IFS=',' read -r -a tuple_elements <<< "$pv"
+        echo -e "\t\tChave: ${tuple_elements[0]}; Algoritmo hash e tamanhodade:${tuple_elements[1]}"
     done
 }
 
