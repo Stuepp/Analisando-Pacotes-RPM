@@ -2,8 +2,8 @@
 
 # --- Variáveis ---
 
-#REPO_PATH="/home/stuepp/Documents/ufpr-repo-fedora/"
-REPO_PATH="/home/stuepp/Documents/TCC-shell-codes/Codigo-refinado/OpenSUSE-PACKS"
+REPO_PATH="/root/TCC/repos_opensuse/opensuse_c3sl_ufpr_br_distribution_leap_16_0_repo_oss_noarch_/"
+#REPO_PATH="/root/TCC/repo1/"
 RPM_KEYS_DIR="/etc/pki/rpm-gpg"
 
 declare -a list_key_ids_used
@@ -77,10 +77,10 @@ add_key_to_keyused_list() {
             fi
         done
         if [[ $same == false ]]; then
-            list_key_ids_used+=($key_id)
+            list_key_ids_used+=("$key_id")
         fi
     else # É vazia
-        list_key_ids_used+=($key_id)
+        list_key_ids_used+=("$key_id")
     fi
 }
 
@@ -175,9 +175,27 @@ coleta_info_da_chave(){
     local key="$1"
     # Busca as informaçãoes da chave e com awk filtra para as informações de interesse
     local key_info=$(gpg --show-keys --with-colons "$key" 2>/dev/null | awk -F: '$1 == "pub" {print $3 ":" $4 ":" $6 ":" $7}')
+
     # Guarda as informações em variaveis separadas
     local size_bits algo_id creation_ts expiration_ts
     IFS=':' read -r size_bits algo_id creation_ts expiration_ts <<< "$key_info"
+
+    #if [[ -z "$size_bits" ]]; then
+    #    echo "Size bits não preenchida"
+    #    return
+    #fi
+    #if [[ -z "$algo_id" ]]; then
+    #    echo "algo_id não preenchida"
+    #    return
+    #fi
+    #if [[ -z "$creation_ts" ]]; then
+    #    echo "creation_ts não preenchida"
+    #    return
+    #fi
+    #if [[ -z "$expiration_ts" ]]; then
+    #    echo "expiration_ts não preenchida"
+    #    return
+    #fi
 
     # Converte os timestamps do Unix para datas legíveis
     local creation_date=$(date -d "@$creation_ts" '+%Y-%m-%d')
@@ -224,13 +242,27 @@ algoritmos_criptograficos_usados_e_tamanhos_de_chave(){
     for k in ${list_key_ids_used[@]}; do
         local short_key_id=${k: -8}
         local key_used=$(rpm -q gpg-pubkey --qf '%{NAME}-%{VERSION}-%{RELEASE}\n' | grep "$short_key_id")
+        
         # Verificação se tem a chave + se consegue formatar a saida dela
         if [[ -n "$key_used" ]]; then
             echo -e "\t\tChave sendo verificada: $(rpm -q gpg-pubkey --qf '%{NAME}-%{VERSION}-%{RELEASE}\t%{SUMMARY}\n' | grep "$short_key_id")"
             # Precisa transformar em um arquivo para poder ser analisado
-            rpm -qi "$key_used" | sed -n '/-----BEGIN PGP PUBLIC KEY BLOCK-----/,/-----END PGP PUBLIC KEY BLOCK-----/p' > chave_exportada.asc
-            # Coleta algoritmo utilizado, tamanho, data de criação, data de expiração, tempo de vida, quem assinou e mostra no terminal com echo
-            coleta_info_da_chave "chave_exportada.asc"
+            # Mas antes verifica se tem como
+            if rpm -qi "$key_used" | grep -q "BEGIN PGP PUBLIC KEY BLOCK"; then
+                rpm -qi "$key_used" | sed -n '/-----BEGIN PGP PUBLIC KEY BLOCK-----/,/-----END PGP PUBLIC KEY BLOCK-----/p' > chave_exportada.asc
+
+                # Verifica se a geração do .asc foi bem sucedido, não está uma arquivo vazio
+                if [[ -s chave_exportada.asc ]]; then
+                    # Coleta algoritmo utilizado, tamanho, data de criação, data de expiração, tempo de vida, quem assinou e mostra no terminal com echo
+                    coleta_info_da_chave "chave_exportada.asc"
+                else
+                    echo -e "\t\t[AVISO] Arquivo chave_exportada.asc está vazio."
+                    echo -e "\t\tGeração do .asc não foi feito corretamente"
+                fi
+            else
+                echo -e "\t\t[AVISO] Pacote $key_used não contém bloco PGP embutido."
+            fi
+            
             echo -e "\t\t Verificando através do comando rpm -qi <pacote> | gpg, também dando as autorizações dessa asssinatura, ex:[SCE]"
             echo -e "\t\t$(rpm -qi "$key_used" | gpg)"
         else
@@ -245,114 +277,6 @@ algoritmos_criptograficos_usados_e_tamanhos_de_chave(){
         IFS=',' read -r -a tuple_elements <<< "$pv"
         echo -e "\t\tChave: ${tuple_elements[0]}; Algoritmo hash e tamanhodade:${tuple_elements[1]}"
     done
-}
-
-verifica_versao_RPM_do_pacote(){
-    local -a pacotes_com_erro=()
-
-    local total_de_pacote=$(ls $REPO_PATH | wc -l)
-    echo "total_de_pacote= $total_de_pacote"
-    local n_pacotes=0
-    local start_time=$(date +%s)
-
-    for pacote in "$REPO_PATH"/*.rpm; do
-        ((n_pacotes++))
-        local versao=$(file "$pacote" | grep -o 'RPM v[0-9.]\+')
-        #echo "Pacote: $(basename "$pacote") -- Versão RPM: $versao"
-        #echo "$versao"
-        if [[ -z "$versao" ]]; then
-            pacotes_com_erro+=("$pacote")
-            continue
-        fi
-
-
-        if (( ${#package_versions[@]} )); then
-            for position in "${!package_versions[@]}"; do
-                IFS=',' read -r ver contador <<< "${package_versions[position]}"
-                if [[ "$ver" != "$versao" ]]; then
-                    local tuple="$versao,1"
-                    package_versions+=("$tuple")
-                else
-                    ((contador++))
-                    local tuple="$versao,$contador"
-                    package_versions[position]="$tuple"
-                fi
-            done
-        else
-            local tuple="$versao,1"
-            package_versions+=("$tuple")
-            #echo "added ${package_versions[-1]}"
-        fi
-        #
-
-        # Barra de progresso
-        local now=$(date +%s)
-        local elapsed=$((now - start_time))
-
-        # Evita a divisão por zero e resultados vazios
-        if (( n_pacotes > 0 )); then
-            local avg_time_per_file=$(echo "scale=4; $elapsed / $n_pacotes" | bc)
-        else
-            local avg_time_per_file=0
-        fi
-
-        local est_total_time=$(echo "scale=4; $avg_time_per_file * $total_de_pacote" | bc)
-        local est_remaining=$(echo "$est_total_time - $elapsed" | bc)
-
-        # se o bc retornar vazio ou negativo, força para 0
-        if [[ -z "$set_remaining" || $(echo "$est_remaining < 0" | bc) -eq 1 ]]; then
-            est_remaining=0
-        fi
-
-        # Garante que temos um valor inteiro válido
-        local est_remaining_int=${est_remaining%.*}
-        [[ -z "$est_remaining_int" ]] && est_remaining_int=0
-
-        # cálculo da porcentagem
-        if (( total_de_pacote > 0 )); then
-            local percent=$(echo "scale=2; ($n_pacotes / $total_de_pacote) * 100" | bc)
-        else
-            local percent=0
-        fi
-
-        # cálculo da barra
-        local filled=$(( (bar_lenght * n_pacotes) / total_de_pacote ))
-        local empty=$((bar_length - filled))
-        local progress_bar
-        progress_bar=$(printf "%0.s#" $(seq 1 $filled))
-        progress_bar=$(printf "%0.s#-" $(seq 1 $empty))
-
-        # Formata o tempo restante (horas:min:seg)
-        local hours=$((est_remaining_int / 3600))
-        local minute=$(( (est_remaining_int % 3600) / 60 ))
-        local seconds=$(( est_remaining_int % 60 ))
-
-        # Exibe a barra de progresso
-        printf "\r[%s] %s%% | %d/%d | Tempo restante: %0d:%02d:%02d" \
-            "$progress_bar" "$percent" "$n_pacotes" "$total_de_pacote" \
-            "$hours" "$minute" "$seconds"
-
-        #
-    
-    done
-
-    echo "Versões de pacotes enontradas:"
-    for pv in "${package_versions[@]}"; do
-        IFS=',' read -r -a tuple_elements <<< "$pv"
-        echo "${tuple_elements[0]}; quantidade:${tuple_elements[1]}"
-    done
-
-    # Exibe os pacotes/arquivos problemáticos
-    if (( ${#pacotes_com_erro[@]} )); then
-        echo -e "\n -------"
-        echo "Pacotes problemáticos encontrados: ${#pacotes_com_erro[@]}"
-        echo "------"
-        for arq in "${pacotes_com_erro[@]}"; do
-            echo "$arq"
-        done
-    else
-        echo -e "\nNenhum pacote problemático encontrado"
-    fi
 }
 
 
@@ -421,9 +345,10 @@ if [ $? -eq 0 ]; then
     echo "Compilation of $C_SOURCE_FILE was successful. Executable name -> $EXECUTABLE_NAME"
     echo
     #"./$EXECUTABLE_NAME" "/home/stuepp/Documents/ufpr-repo-fedora/0ad-0.0.26-30.fc42.x86_64.rpm"
+    echo "-----------------------------------"
+    echo "Verificando versão RPM dos pacotes:"
+    verifica_RPM
+else
+    echo
+    echo "Não foi possivel compilar $C_SOURCE_FILE"
 fi
-
-echo "-----------------------------------"
-echo "Verificando versão RPM dos pacotes:"
-verifica_versao_RPM_do_pacote
-verifica_RPM
